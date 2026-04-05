@@ -194,9 +194,27 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('T2G CRM', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF1E293B))),
-            Text(
-              widget.apiService.staffName ?? '',
-              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+            Row(
+              children: [
+                Text(
+                  widget.apiService.staffName ?? '',
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                ),
+                if (widget.apiService.staffRole != null && widget.apiService.staffRole!.isNotEmpty) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0FDF4),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      widget.apiService.staffRole!,
+                      style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: Color(0xFF16A34A)),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ],
         ),

@@ -16,30 +16,25 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _urlController = TextEditingController();
-  final _ownerIdController = TextEditingController();
   final _emailController = TextEditingController();
-  final _nameController = TextEditingController();
+  final _passwordController = TextEditingController();
   bool _loading = false;
+  bool _obscurePassword = true;
   String? _error;
 
   @override
   void dispose() {
-    _urlController.dispose();
-    _ownerIdController.dispose();
     _emailController.dispose();
-    _nameController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
-  Future<void> _connect() async {
-    final url = _urlController.text.trim();
-    final ownerId = _ownerIdController.text.trim();
+  Future<void> _login() async {
     final email = _emailController.text.trim();
-    final name = _nameController.text.trim();
+    final password = _passwordController.text;
 
-    if (url.isEmpty || ownerId.isEmpty || email.isEmpty || name.isEmpty) {
-      setState(() => _error = 'All fields are required');
+    if (email.isEmpty || password.isEmpty) {
+      setState(() => _error = 'Email and password are required');
       return;
     }
 
@@ -49,22 +44,12 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      // Verify URL is reachable
-      await widget.apiService.verifyConnection(url, email);
-
-      // Save config
-      await widget.apiService.saveConfig(
-        baseUrl: url,
-        ownerId: ownerId,
-        staffEmail: email,
-        staffName: name,
-      );
-
+      await widget.apiService.login(email, password);
       widget.onLoggedIn();
     } catch (e) {
       setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -78,7 +63,6 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Logo
               Container(
                 width: 72,
                 height: 72,
@@ -99,7 +83,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 32),
 
-              // Form Card
               Container(
                 width: double.infinity,
                 constraints: const BoxConstraints(maxWidth: 400),
@@ -120,52 +103,44 @@ class _LoginScreenState extends State<LoginScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Connect to CRM',
+                      'Sign In',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      'Enter your CRM details to start syncing call logs.',
+                      'Login with your CRM team member credentials.',
                       style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
                     ),
                     const SizedBox(height: 20),
 
-                    _buildLabel('Your Name'),
-                    _buildTextField(
-                      controller: _nameController,
-                      hint: 'e.g. Sugunamani',
-                      icon: Icons.person_outline,
-                    ),
-                    const SizedBox(height: 14),
-
-                    _buildLabel('Your Email'),
-                    _buildTextField(
+                    _buildLabel('Email'),
+                    TextField(
                       controller: _emailController,
-                      hint: 'your@email.com',
-                      icon: Icons.email_outlined,
                       keyboardType: TextInputType.emailAddress,
+                      style: const TextStyle(fontSize: 14),
+                      decoration: _inputDecoration(hint: 'your@email.com', icon: Icons.email_outlined),
                     ),
                     const SizedBox(height: 14),
 
-                    _buildLabel('CRM Website URL'),
-                    _buildTextField(
-                      controller: _urlController,
-                      hint: 'https://your-crm.vercel.app',
-                      icon: Icons.link,
-                      keyboardType: TextInputType.url,
-                    ),
-                    const SizedBox(height: 14),
-
-                    _buildLabel('Owner ID'),
-                    _buildTextField(
-                      controller: _ownerIdController,
-                      hint: 'From CRM Settings > API',
-                      icon: Icons.key_outlined,
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Ask your business owner for the Owner ID from CRM Settings.',
-                      style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                    _buildLabel('Password'),
+                    TextField(
+                      controller: _passwordController,
+                      obscureText: _obscurePassword,
+                      style: const TextStyle(fontSize: 14),
+                      onSubmitted: (_) => _login(),
+                      decoration: _inputDecoration(
+                        hint: 'Enter password',
+                        icon: Icons.lock_outline,
+                      ).copyWith(
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                            size: 18,
+                            color: const Color(0xFF94A3B8),
+                          ),
+                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                        ),
+                      ),
                     ),
 
                     if (_error != null) ...[
@@ -196,7 +171,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       width: double.infinity,
                       height: 44,
                       child: ElevatedButton(
-                        onPressed: _loading ? null : _connect,
+                        onPressed: _loading ? null : _login,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF16A34A),
                           foregroundColor: Colors.white,
@@ -205,7 +180,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         child: _loading
                             ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                            : const Text('Connect & Start', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                            : const Text('Sign In', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
                       ),
                     ),
                   ],
@@ -228,36 +203,26 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String hint,
-    required IconData icon,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      style: const TextStyle(fontSize: 14),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: const TextStyle(fontSize: 13, color: Color(0xFFCBD5E1)),
-        prefixIcon: Icon(icon, size: 18, color: const Color(0xFF94A3B8)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFF16A34A), width: 1.5),
-        ),
-        filled: true,
-        fillColor: Colors.white,
+  InputDecoration _inputDecoration({required String hint, required IconData icon}) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(fontSize: 13, color: Color(0xFFCBD5E1)),
+      prefixIcon: Icon(icon, size: 18, color: const Color(0xFF94A3B8)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
       ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFF16A34A), width: 1.5),
+      ),
+      filled: true,
+      fillColor: Colors.white,
     );
   }
 }

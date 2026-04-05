@@ -7,17 +7,21 @@ class ApiService {
   static const String _ownerIdKey = 'crm_owner_id';
   static const String _staffEmailKey = 'crm_staff_email';
   static const String _staffNameKey = 'crm_staff_name';
+  static const String _staffRoleKey = 'crm_staff_role';
   static const String _lastSyncKey = 'crm_last_sync';
+
+  static const String crmUrl = 'https://dev.t2gcrm.in';
 
   String? _baseUrl;
   String? _ownerId;
   String? _staffEmail;
   String? _staffName;
-
+  String? _staffRole;
   String? get baseUrl => _baseUrl;
   String? get ownerId => _ownerId;
   String? get staffEmail => _staffEmail;
   String? get staffName => _staffName;
+  String? get staffRole => _staffRole;
 
   Future<void> loadConfig() async {
     final prefs = await SharedPreferences.getInstance();
@@ -25,23 +29,27 @@ class ApiService {
     _ownerId = prefs.getString(_ownerIdKey);
     _staffEmail = prefs.getString(_staffEmailKey);
     _staffName = prefs.getString(_staffNameKey);
+    _staffRole = prefs.getString(_staffRoleKey);
   }
 
-  Future<void> saveConfig({
+  Future<void> _saveConfig({
     required String baseUrl,
     required String ownerId,
     required String staffEmail,
     required String staffName,
+    required String staffRole,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    _baseUrl = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    _baseUrl = baseUrl;
     _ownerId = ownerId;
     _staffEmail = staffEmail;
     _staffName = staffName;
-    await prefs.setString(_baseUrlKey, _baseUrl!);
-    await prefs.setString(_ownerIdKey, _ownerId!);
-    await prefs.setString(_staffEmailKey, _staffEmail!);
-    await prefs.setString(_staffNameKey, _staffName!);
+    _staffRole = staffRole;
+    await prefs.setString(_baseUrlKey, baseUrl);
+    await prefs.setString(_ownerIdKey, ownerId);
+    await prefs.setString(_staffEmailKey, staffEmail);
+    await prefs.setString(_staffNameKey, staffName);
+    await prefs.setString(_staffRoleKey, staffRole);
   }
 
   Future<void> clearConfig() async {
@@ -50,40 +58,104 @@ class ApiService {
     await prefs.remove(_ownerIdKey);
     await prefs.remove(_staffEmailKey);
     await prefs.remove(_staffNameKey);
+    await prefs.remove(_staffRoleKey);
     await prefs.remove(_lastSyncKey);
     _baseUrl = null;
     _ownerId = null;
     _staffEmail = null;
     _staffName = null;
+    _staffRole = null;
   }
 
   bool get isConfigured => _baseUrl != null && _ownerId != null && _staffEmail != null;
 
-  /// Verify connection by fetching team members and finding this user
-  Future<Map<String, dynamic>> verifyConnection(String baseUrl, String email) async {
-    final url = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
-    final response = await http.get(
-      Uri.parse('$url/api/data?module=teams&ownerId=_discover_&email=${Uri.encodeComponent(email)}'),
+  /// Login with email + password via CRM auth API.
+  /// Returns user info including ownerUserId, name, role.
+  Future<Map<String, dynamic>> login(String email, String password) async {
+    final url = crmUrl;
+
+    // Step 1: Authenticate via /api/auth?action=login
+    final loginResponse = await http.post(
+      Uri.parse('$url/api/auth'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'action': 'login',
+        'email': email.trim().toLowerCase(),
+        'password': password,
+      }),
     ).timeout(const Duration(seconds: 15));
 
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      if (data['success'] == true) {
-        return data;
+    final loginData = json.decode(loginResponse.body);
+
+    if (loginResponse.statusCode != 200 || loginData['success'] != true) {
+      throw Exception(loginData['error'] ?? 'Login failed');
+    }
+
+    // Extract info from login response
+    String ownerUserId = loginData['ownerUserId'] ?? '';
+    String name = '';
+    String role = loginData['role'] ?? '';
+
+    // If ownerUserId is available from login, use it
+    if (ownerUserId.isNotEmpty) {
+      // For team members, login already returns ownerUserId
+      // Get the team member name
+      if (loginData['isTeamMember'] == true) {
+        // Fetch name from roles endpoint
+        final rolesResponse = await http.post(
+          Uri.parse('$url/api/auth'),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({
+            'action': 'roles',
+            'email': email.trim().toLowerCase(),
+          }),
+        ).timeout(const Duration(seconds: 10));
+
+        final rolesData = json.decode(rolesResponse.body);
+        if (rolesData['success'] == true) {
+          name = rolesData['name'] ?? '';
+          ownerUserId = rolesData['ownerUserId'] ?? ownerUserId;
+          role = rolesData['role'] ?? role;
+        }
+      }
+    } else {
+      // Fallback: use roles endpoint to discover
+      final rolesResponse = await http.post(
+        Uri.parse('$url/api/auth'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'action': 'roles',
+          'email': email.trim().toLowerCase(),
+        }),
+      ).timeout(const Duration(seconds: 10));
+
+      final rolesData = json.decode(rolesResponse.body);
+      if (rolesResponse.statusCode == 200 && rolesData['success'] == true) {
+        ownerUserId = rolesData['ownerUserId'] ?? '';
+        name = rolesData['name'] ?? '';
+        role = rolesData['role'] ?? '';
       }
     }
 
-    // Try alternative: fetch with any ownerId to verify URL is reachable
-    final testResponse = await http.get(
-      Uri.parse('$url/api/call-logs?ownerId=test'),
-    ).timeout(const Duration(seconds: 10));
-
-    if (testResponse.statusCode == 400 || testResponse.statusCode == 200) {
-      // API is reachable
-      return {'reachable': true};
+    if (ownerUserId.isEmpty) {
+      throw Exception('Could not determine your business. Contact your admin.');
     }
 
-    throw Exception('Could not connect to CRM. Check the URL.');
+    // Save config
+    await _saveConfig(
+      baseUrl: url,
+      ownerId: ownerUserId,
+      staffEmail: email.trim().toLowerCase(),
+      staffName: name.isNotEmpty ? name : email.trim(),
+      staffRole: role,
+    );
+
+    return {
+      'ownerUserId': ownerUserId,
+      'name': name,
+      'role': role,
+      'isTeamMember': loginData['isTeamMember'] ?? false,
+    };
   }
 
   /// Sync call logs to CRM (batch upload)
@@ -106,7 +178,6 @@ class ApiService {
 
     if (response.statusCode == 201) {
       final data = json.decode(response.body);
-      // Save last sync time
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(_lastSyncKey, DateTime.now().millisecondsSinceEpoch);
       return data['created'] ?? 0;
@@ -119,11 +190,5 @@ class ApiService {
   Future<int?> getLastSyncTime() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getInt(_lastSyncKey);
-  }
-
-  /// Save last sync time
-  Future<void> setLastSyncTime(int timestamp) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_lastSyncKey, timestamp);
   }
 }
