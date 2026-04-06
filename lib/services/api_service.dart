@@ -191,4 +191,86 @@ class ApiService {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getInt(_lastSyncKey);
   }
+
+  /// Check-in: POST /api/attendance with action='checkin'
+  Future<Map<String, dynamic>> checkIn({
+    required double lat,
+    required double lng,
+    required String address,
+  }) async {
+    if (!isConfigured) throw Exception('Not configured');
+
+    final response = await http.post(
+      Uri.parse('$_baseUrl/api/attendance'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'action': 'checkin',
+        'ownerId': _ownerId,
+        'staffEmail': _staffEmail,
+        'staffName': _staffName,
+        'lat': lat,
+        'lng': lng,
+        'address': address,
+      }),
+    ).timeout(const Duration(seconds: 15));
+
+    final data = json.decode(response.body);
+    if (response.statusCode == 201) {
+      return data;
+    } else {
+      throw Exception(data['error'] ?? 'Check-in failed');
+    }
+  }
+
+  /// Check-out: POST /api/attendance with action='checkout'
+  Future<Map<String, dynamic>> checkOut({
+    required double lat,
+    required double lng,
+    required String address,
+  }) async {
+    if (!isConfigured) throw Exception('Not configured');
+
+    final response = await http.post(
+      Uri.parse('$_baseUrl/api/attendance'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'action': 'checkout',
+        'ownerId': _ownerId,
+        'staffEmail': _staffEmail,
+        'staffName': _staffName,
+        'lat': lat,
+        'lng': lng,
+        'address': address,
+      }),
+    ).timeout(const Duration(seconds: 15));
+
+    final data = json.decode(response.body);
+    if (response.statusCode == 200) {
+      return data;
+    } else {
+      throw Exception(data['error'] ?? 'Check-out failed');
+    }
+  }
+
+  /// Get attendance records
+  Future<List<Map<String, dynamic>>> getAttendance({String? date}) async {
+    if (!isConfigured) throw Exception('Not configured');
+
+    final queryParams = <String, String>{
+      'ownerId': _ownerId!,
+      'staffEmail': _staffEmail!,
+    };
+    if (date != null) queryParams['date'] = date;
+
+    final uri = Uri.parse('$_baseUrl/api/attendance').replace(queryParameters: queryParams);
+    final response = await http.get(uri, headers: {'Content-Type': 'application/json'})
+        .timeout(const Duration(seconds: 15));
+
+    final data = json.decode(response.body);
+    if (response.statusCode == 200 && data['success'] == true) {
+      return List<Map<String, dynamic>>.from(data['data'] ?? []);
+    } else {
+      throw Exception(data['error'] ?? 'Failed to fetch attendance');
+    }
+  }
 }
