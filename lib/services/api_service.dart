@@ -273,4 +273,151 @@ class ApiService {
       throw Exception(data['error'] ?? 'Failed to fetch attendance');
     }
   }
+
+  /// Fetch leads for current business
+  Future<List<Map<String, dynamic>>> fetchLeads() async {
+    if (!isConfigured) throw Exception('Not configured');
+
+    final queryParams = <String, String>{
+      'collection': 'Leads',
+      'ownerId': _ownerId!,
+    };
+
+    final uri = Uri.parse('$_baseUrl/api/data').replace(queryParameters: queryParams);
+    final response = await http.get(uri, headers: {'Content-Type': 'application/json'})
+        .timeout(const Duration(seconds: 15));
+
+    final data = json.decode(response.body);
+    if (response.statusCode == 200 && data['success'] == true) {
+      return List<Map<String, dynamic>>.from(data['data'] ?? []);
+    } else {
+      throw Exception(data['error'] ?? 'Failed to fetch leads');
+    }
+  }
+
+  /// Create a new lead
+  Future<Map<String, dynamic>> createLead({
+    required String name,
+    required String phone,
+    required String email,
+    required String source,
+    required String stage,
+    String requirement = '',
+    String assign = '',
+    String followup = '',
+    String notes = '',
+    String companyName = '',
+    String productCat = '',
+    Map<String, dynamic> custom = const {},
+  }) async {
+    if (!isConfigured) throw Exception('Not configured');
+
+    final response = await http.post(
+      Uri.parse('$_baseUrl/api/data'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'action': 'create',
+        'collection': 'Leads',
+        'ownerId': _ownerId,
+        'data': {
+          'name': name,
+          'phone': phone,
+          'email': email,
+          'source': source,
+          'stage': stage,
+          'requirement': requirement,
+          'assign': assign,
+          'followup': followup,
+          'notes': notes,
+          'companyName': companyName,
+          'productCat': productCat,
+          'custom': custom,
+          'createdDate': DateTime.now().toIso8601String(),
+          'staffEmail': _staffEmail,
+          'staffName': _staffName,
+        },
+      }),
+    ).timeout(const Duration(seconds: 15));
+
+    final data = json.decode(response.body);
+    if (response.statusCode == 201 && data['success'] == true) {
+      return data['data'] ?? {};
+    } else {
+      throw Exception(data['error'] ?? 'Failed to create lead');
+    }
+  }
+
+  /// Update an existing lead
+  Future<Map<String, dynamic>> updateLead({
+    required String leadId,
+    required String name,
+    required String phone,
+    required String email,
+    required String source,
+    required String stage,
+    String requirement = '',
+    String assign = '',
+    String followup = '',
+    String notes = '',
+    String companyName = '',
+    String productCat = '',
+    Map<String, dynamic> custom = const {},
+  }) async {
+    if (!isConfigured) throw Exception('Not configured');
+
+    final response = await http.post(
+      Uri.parse('$_baseUrl/api/data'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'action': 'update',
+        'collection': 'Leads',
+        'ownerId': _ownerId,
+        'id': leadId,
+        'data': {
+          'name': name,
+          'phone': phone,
+          'email': email,
+          'source': source,
+          'stage': stage,
+          'requirement': requirement,
+          'assign': assign,
+          'followup': followup,
+          'notes': notes,
+          'companyName': companyName,
+          'productCat': productCat,
+          'custom': custom,
+        },
+      }),
+    ).timeout(const Duration(seconds: 15));
+
+    final data = json.decode(response.body);
+    if (response.statusCode == 200 && data['success'] == true) {
+      return data['data'] ?? {};
+    } else {
+      throw Exception(data['error'] ?? 'Failed to update lead');
+    }
+  }
+
+  /// Delete a lead
+  Future<bool> deleteLead({required String leadId}) async {
+    if (!isConfigured) throw Exception('Not configured');
+
+    final response = await http.post(
+      Uri.parse('$_baseUrl/api/data'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'action': 'delete',
+        'collection': 'Leads',
+        'ownerId': _ownerId,
+        'id': leadId,
+      }),
+    ).timeout(const Duration(seconds: 15));
+
+    final data = json.decode(response.body);
+    if (response.statusCode == 200 && data['success'] == true) {
+      return true;
+    } else {
+      throw Exception(data['error'] ?? 'Failed to delete lead');
+    }
+  }
 }

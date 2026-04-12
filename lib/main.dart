@@ -3,6 +3,7 @@ import 'services/api_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/attendance_screen.dart';
+import 'screens/leads_screen.dart';
 
 void main() {
   runApp(const CrmCallLoggerApp());
@@ -87,6 +88,7 @@ class _MainShellState extends State<_MainShell> {
             onLogout: widget.onLogout,
           ),
           AttendanceScreen(apiService: widget.apiService),
+          LeadsScreen(apiService: widget.apiService),
         ],
       ),
       bottomNavigationBar: NavigationBar(
@@ -105,6 +107,11 @@ class _MainShellState extends State<_MainShell> {
             icon: Icon(Icons.access_time_outlined),
             selectedIcon: Icon(Icons.access_time_filled, color: Color(0xFF16A34A)),
             label: 'Attendance',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.contacts_outlined),
+            selectedIcon: Icon(Icons.contacts, color: Color(0xFF16A34A)),
+            label: 'Leads',
           ),
         ],
       ),
