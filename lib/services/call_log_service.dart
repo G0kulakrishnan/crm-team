@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:call_log/call_log.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -7,6 +8,7 @@ class CallLogService {
 
   /// Request required permissions
   static Future<bool> requestPermissions() async {
+    if (kIsWeb) return false;
     final statuses = await [
       Permission.phone,
       Permission.contacts,
@@ -17,6 +19,7 @@ class CallLogService {
 
   /// Check if permissions are granted
   static Future<bool> hasPermissions() async {
+    if (kIsWeb) return false;
     return await Permission.phone.isGranted;
   }
 

@@ -279,7 +279,7 @@ class ApiService {
     if (!isConfigured) throw Exception('Not configured');
 
     final queryParams = <String, String>{
-      'collection': 'Leads',
+      'module': 'leads',
       'ownerId': _ownerId!,
     };
 
@@ -316,32 +316,32 @@ class ApiService {
       Uri.parse('$_baseUrl/api/data'),
       headers: {'Content-Type': 'application/json'},
       body: json.encode({
-        'action': 'create',
-        'collection': 'Leads',
+        'module': 'leads',
         'ownerId': _ownerId,
-        'data': {
-          'name': name,
-          'phone': phone,
-          'email': email,
-          'source': source,
-          'stage': stage,
-          'requirement': requirement,
-          'assign': assign,
-          'followup': followup,
-          'notes': notes,
-          'companyName': companyName,
-          'productCat': productCat,
-          'custom': custom,
-          'createdDate': DateTime.now().toIso8601String(),
-          'staffEmail': _staffEmail,
-          'staffName': _staffName,
-        },
+        'actorId': _ownerId,
+        'userName': _staffEmail,
+        'name': name,
+        'phone': phone,
+        'email': email,
+        'source': source,
+        'stage': stage,
+        'requirement': requirement,
+        'assign': assign,
+        'followup': followup,
+        'notes': notes,
+        'companyName': companyName,
+        'productCat': productCat,
+        'custom': custom,
+        'createdDate': DateTime.now().toIso8601String(),
+        'staffEmail': _staffEmail,
+        'staffName': _staffName,
+        'logText': 'Lead created from mobile app',
       }),
     ).timeout(const Duration(seconds: 15));
 
     final data = json.decode(response.body);
-    if (response.statusCode == 201 && data['success'] == true) {
-      return data['data'] ?? {};
+    if (response.statusCode == 200 && data['success'] == true) {
+      return data;
     } else {
       throw Exception(data['error'] ?? 'Failed to create lead');
     }
@@ -365,34 +365,34 @@ class ApiService {
   }) async {
     if (!isConfigured) throw Exception('Not configured');
 
-    final response = await http.post(
+    final response = await http.patch(
       Uri.parse('$_baseUrl/api/data'),
       headers: {'Content-Type': 'application/json'},
       body: json.encode({
-        'action': 'update',
-        'collection': 'Leads',
+        'module': 'leads',
         'ownerId': _ownerId,
+        'actorId': _ownerId,
+        'userName': _staffEmail,
         'id': leadId,
-        'data': {
-          'name': name,
-          'phone': phone,
-          'email': email,
-          'source': source,
-          'stage': stage,
-          'requirement': requirement,
-          'assign': assign,
-          'followup': followup,
-          'notes': notes,
-          'companyName': companyName,
-          'productCat': productCat,
-          'custom': custom,
-        },
+        'name': name,
+        'phone': phone,
+        'email': email,
+        'source': source,
+        'stage': stage,
+        'requirement': requirement,
+        'assign': assign,
+        'followup': followup,
+        'notes': notes,
+        'companyName': companyName,
+        'productCat': productCat,
+        'custom': custom,
+        'logText': 'Lead updated from mobile app',
       }),
     ).timeout(const Duration(seconds: 15));
 
     final data = json.decode(response.body);
     if (response.statusCode == 200 && data['success'] == true) {
-      return data['data'] ?? {};
+      return data;
     } else {
       throw Exception(data['error'] ?? 'Failed to update lead');
     }
@@ -402,14 +402,16 @@ class ApiService {
   Future<bool> deleteLead({required String leadId}) async {
     if (!isConfigured) throw Exception('Not configured');
 
-    final response = await http.post(
+    final response = await http.delete(
       Uri.parse('$_baseUrl/api/data'),
       headers: {'Content-Type': 'application/json'},
       body: json.encode({
-        'action': 'delete',
-        'collection': 'Leads',
+        'module': 'leads',
         'ownerId': _ownerId,
+        'actorId': _ownerId,
+        'userName': _staffEmail,
         'id': leadId,
+        'logText': 'Lead deleted from mobile app',
       }),
     ).timeout(const Duration(seconds: 15));
 

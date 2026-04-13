@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/api_service.dart';
@@ -45,6 +46,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadCallLogs() async {
     setState(() => _loading = true);
     try {
+      if (kIsWeb) {
+        // Call logs and permissions are not available on web
+        setState(() => _loading = false);
+        return;
+      }
       final hasPerms = await CallLogService.hasPermissions();
       if (!hasPerms) {
         final granted = await CallLogService.requestPermissions();
